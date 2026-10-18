@@ -1,88 +1,59 @@
-# Dockerized Service on AWS EC2
+# Dockerized Service Deployment
 
-A simple Node.js and Express web service containerized with Docker and deployed to an AWS EC2 Ubuntu instance. The application demonstrates Docker image creation, container deployment, port mapping, environment configuration, and HTTP Basic Authentication.
+A simple Node.js service containerized with Docker and deployed to an AWS EC2 Ubuntu server. This project follows the [roadmap.sh Dockerized Service project](https://roadmap.sh/projects/dockerized-service-deployment).
 
-## Features
+## Project Overview
 
-- **Node.js & Express** — lightweight web server.
-- **Docker** — containerized application using `node:24-alpine`.
-- **AWS EC2** — deployed on an Ubuntu cloud instance.
-- **Port Mapping** — maps host port `3001` to container port `3000`.
-- **Basic Authentication** — protects the `/secret` endpoint.
-- **Environment Variables** — separates configuration from application code.
-- **Automatic Restart** — uses Docker's `unless-stopped` restart policy.
+The goal of this project is to build a Node.js service, package it into a Docker image, deploy it to a remote Linux server, and explore automated deployment using GitHub Actions.
 
 ## Tech Stack
 
-- Node.js 24
+- Node.js
 - Express.js
 - Docker
 - AWS EC2
 - Ubuntu Linux
-- HTTP Basic Authentication
+- GitHub Actions (planned for CI/CD automation)
+
+## Features
+
+- A public endpoint that returns `Hello, world!`
+- A protected `/secret` endpoint using HTTP Basic Authentication
+- Environment-based configuration using a `.env` file
+- Docker image creation and container deployment
+- Port mapping between the EC2 host and the container
+- Automatic container restart using Docker's `unless-stopped` policy
 
 ## Application Endpoints
 
-| Endpoint      | Authentication | Expected Result                       |
-| ------------- | -------------- | ------------------------------------- |
-| `GET /`       | Not required   | `Hello, world!`                       |
-| `GET /secret` | Required       | Returns the configured secret message |
+| Method | Endpoint  | Description                                                             |
+| ------ | --------- | ----------------------------------------------------------------------- |
+| GET    | `/`       | Returns `Hello, world!`                                                 |
+| GET    | `/secret` | Returns a secret message when valid Basic Auth credentials are provided |
 
-### Authentication Behavior
+## Environment Variables
 
-The `/secret` endpoint uses HTTP Basic Authentication.
-
-- Valid credentials: returns `200 OK`.
-- Missing or invalid credentials: returns `401 Unauthorized`.
-
-## Project Structure
-
-```text
-dockerized-service/
-├── src/
-│   └── server.js
-├── Dockerfile
-├── .dockerignore
-├── .env
-├── package.json
-├── package-lock.json
-└── README.md
-```
-
-**Note:** The `.env` file contains local configuration and must not be committed to GitHub. Use a sanitized `.env.example` file to document the required variables.
-
-## Getting Started
-
-### 1. Clone the Repository
-
-```bash
-git clone <YOUR_REPOSITORY_URL>
-cd dockerized-service
-```
-
-Replace `<YOUR_REPOSITORY_URL>` with your actual GitHub repository URL.
-
-### 2. Configure Environment Variables
-
-Create a `.env` file containing the variables expected by `src/server.js`.
-
-Example:
+Create a `.env` file in the project root:
 
 ```env
-SECRET_MESSAGE="This is a secret message"
+SECRET_MESSAGE="Your secret message"
+USERNAME=admin
+PASSWORD=your-strong-password
 ```
 
-Configure the Basic Authentication username and password according to the variable names used by your application.
+These variables configure the secret response and Basic Authentication credentials.
 
-Use strong credentials and keep `.env` out of version control.
+Do not commit `.env` to version control or include it in the Docker image. Add `.env` to `.gitignore` and `.dockerignore`.
 
-### 3. Build the Docker Image
+## Run Locally
+
+### 1. Build the Docker Image
 
 ```bash
 docker build -t dockerized-service:1.0 .
 ```
 
-### 4. Run the Container
+### 2. Start the Container
 
 ```bash
 docker run -d \
@@ -93,135 +64,105 @@ docker run -d \
   dockerized-service:1.0
 ```
 
-### 5. Verify the Container
+### 3. Test the Application
+
+Test the public endpoint:
 
 ```bash
-docker ps
+curl -i http://localhost:3001/
 ```
 
-Check the application logs:
+Test the protected endpoint:
 
 ```bash
-docker logs dockerized-service
+curl -i -u admin http://localhost:3001/secret
 ```
 
-## Deployment on AWS EC2
+Curl prompts for the password when it is omitted from the command.
 
-The application was deployed to an Ubuntu instance on AWS EC2.
+Test authentication without credentials:
+
+```bash
+curl -i http://localhost:3001/secret
+```
+
+The expected responses are `200 OK` for valid credentials and `401 Unauthorized` for missing or invalid credentials.
+
+## AWS EC2 Deployment
+
+The Dockerized service was deployed to an Ubuntu server on AWS EC2.
 
 ### Deployment Configuration
 
-| Configuration    | Value                    |
+| Setting          | Value                    |
 | ---------------- | ------------------------ |
 | Cloud Provider   | AWS                      |
 | Compute Service  | Amazon EC2               |
 | Operating System | Ubuntu Linux             |
 | Docker Image     | `dockerized-service:1.0` |
 | Container Port   | `3000`                   |
-| EC2 Host Port    | `3001`                   |
+| Host Port        | `3001`                   |
 | Restart Policy   | `unless-stopped`         |
 
-### Configure the Security Group
+### Security Group Configuration
 
-Add an inbound rule to the EC2 security group:
+Configure an inbound rule in the EC2 security group:
 
-| Setting    | Value      |
-| ---------- | ---------- |
-| Type       | Custom TCP |
-| Port Range | `3001`     |
-| Source     | My IP      |
+- **Type:** Custom TCP
+- **Port:** `3001`
+- **Source:** My IP
 
-Restricting the source to your IP limits access to your current public IP address. Update the rule if your IP changes.
-
-### Access the Application
-
-Find the instance's **Public IPv4 address** in the AWS EC2 Console.
-
-Open the root endpoint in your browser:
+Use the instance's public IPv4 address to access the service:
 
 ```text
 http://<EC2_PUBLIC_IP>:3001/
 ```
 
-Expected response:
+The root endpoint should return:
 
 ```text
 Hello, world!
 ```
 
-## Testing
-
-### Test the Root Endpoint
+To test the protected endpoint remotely:
 
 ```bash
-curl -i http://localhost:3001/
+curl -i -u admin http://<EC2_PUBLIC_IP>:3001/secret
 ```
 
-Expected status: `200 OK`.
+Use HTTPS before sending authentication credentials over an untrusted network. Basic Authentication over plain HTTP does not encrypt credentials.
 
-For a remote test, replace `localhost` with the EC2 public IP address.
+## Deployment Workflow
 
-### Test the Protected Endpoint
+The application has been built into a Docker image and deployed to AWS EC2 using Docker commands.
 
-With valid credentials:
+The next stage is to automate the deployment process with GitHub Actions:
 
-```bash
-curl -i -u "$BASIC_AUTH_USER" \
-  http://localhost:3001/secret
-```
+1. Trigger a workflow when changes are pushed to the repository.
+2. Build the Docker image.
+3. Push the image to a container registry.
+4. Connect to the EC2 server securely.
+5. Pull the updated image and restart the container.
+6. Store deployment credentials in GitHub Actions Secrets.
 
-Curl prompts for the password if it is not provided. Use the actual username configured by the application.
-
-Without credentials:
-
-```bash
-curl -i http://localhost:3001/secret
-```
-
-Expected status: `401 Unauthorized`.
-
-**Note:** If your application uses different environment variable names, adapt the test command accordingly.
-
-## Verification Results
-
-- [x] Docker image built successfully.
-- [x] Container started successfully on AWS EC2.
-- [x] Port mapping configured from `3001` to `3000`.
-- [x] Root endpoint tested successfully.
-- [x] Protected endpoint tested with valid credentials.
-- [x] Unauthorized access tested.
-- [x] Container configured to restart automatically unless manually stopped.
+This CI/CD workflow is not considered complete until it has been implemented and tested successfully.
 
 ## Security Considerations
 
-- Never commit `.env`, passwords, or other secrets to GitHub.
-- Replace demonstration credentials with strong, unique credentials.
-- Basic Authentication over plain HTTP does not encrypt credentials in transit. Use HTTPS before exposing authenticated endpoints beyond a controlled test environment.
-- Restrict EC2 inbound rules to trusted IP addresses.
-- Store production secrets using an appropriate secrets-management mechanism.
-- Avoid running containers with unnecessary privileges.
+- Keep `.env` and other secrets out of Git.
+- Use strong, unique authentication credentials.
+- Restrict inbound traffic through the EC2 security group.
+- Use GitHub Actions Secrets for CI/CD credentials.
+- Avoid exposing authenticated endpoints over plain HTTP on untrusted networks.
 
-## Future Improvements
+## References
 
-- Configure Nginx as a reverse proxy.
-- Enable HTTPS with TLS certificates.
-- Automate deployment using GitHub Actions.
-- Add health checks and structured logging.
-- Implement container and dependency vulnerability scanning.
-
-## Learning Outcomes
-
-This project demonstrates practical experience with:
-
-- Containerizing a Node.js application.
-- Building and running Docker images.
-- Deploying a web service on AWS EC2.
-- Configuring network access and Docker port mapping.
-- Testing authenticated and unauthenticated API endpoints.
-- Applying basic deployment security practices.
+- [roadmap.sh — Dockerized Service Deployment](https://roadmap.sh/projects/dockerized-service-deployment)
+- [Docker Documentation](https://docs.docker.com/)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [Amazon EC2 Documentation](https://docs.aws.amazon.com/ec2/)
 
 ---
 
-**Status:** Completed
-
-**Project Type:** Cloud Deployment / Docker / DevOps Fundamentals
+**Project:** Dockerized Service Deployment  
+**Status:** Docker deployment completed; CI/CD automation pending.
